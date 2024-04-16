@@ -1,0 +1,32 @@
+# Setup
+title:               'FV Utilites'
+tagline:             'Functional Verification Utilities'
+description:         ''
+url:                 ''
+baseurl:             ''
+paginate:            5
+#permalink:           pretty
+
+exclude:
+    - packages
+
+# About/contact
+author:
+  name:              Matthew Ballance
+  url:               http://fvutils.github.io
+  email:             matt.ballance@gmail.com
+
+rooturl: http://fvutils.github.io
+  
+github:
+  repo: http://github.com/fvutils
+
+# Gems
+plugins:
+  - jekyll-paginate
+
+# Custom vars
+version:             1.0.0
+google_analytics_id: G-B75HY0XCL2
+
+copyright:             © <!--copyyears--> Matthew Ballance; All rights reserved.
