@@ -23,6 +23,10 @@ title: Home
 
 # FVUtils - Functional Verification Utilities
 
+FVUtils is a collection of projects that target the needs of 
+functional verification engineers. Many are implemented in Python, 
+though some are C++. Have a look through the table below for a
+summary of the collected tools.
 
 <!--
 <div class="pagination">
