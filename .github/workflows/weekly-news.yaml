@@ -84,20 +84,29 @@ jobs:
           WEEK_NUM=$(date -u +%V)
           YEAR=$(date -u +%Y)
           
-          # Use gh copilot with gpt-5-mini (free tier model)
-          gh copilot suggest --model gpt-5-mini "Based on the following activity data, create a concise 2-3 paragraph news update suitable for a website news section. Focus on the most significant changes and developments. Keep it professional and informative. Activity data: $(cat /tmp/activity.md)" > /tmp/short_news.txt || {
-            echo "Failed to generate with gh copilot suggest, trying gh copilot explain"
-            gh copilot explain --model gpt-5-mini "Summarize this GitHub activity into a short 2-3 paragraph news update: $(cat /tmp/activity.md)" > /tmp/short_news.txt
-          }
+          # Create prompt file for copilot
+          cat > /tmp/prompt.txt << 'EOF'
+Based on the following GitHub activity from the past week, create a concise 2-3 paragraph news update suitable for a website news section. Focus on the most significant changes and developments. Keep it professional and informative.
+
+EOF
+          cat /tmp/activity.md >> /tmp/prompt.txt
+          
+          # Use gh copilot with gpt-5-mini
+          gh copilot suggest -p "$(cat /tmp/prompt.txt)" --model gpt-5-mini > /tmp/short_news.txt
 
       - name: Generate Detailed Overview
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh copilot suggest --model gpt-5-mini "Based on the following activity data, create a detailed weekly overview with sections for different types of changes (commits, pull requests, issues). Include relevant details and provide context about the significance of changes. Activity data: $(cat /tmp/activity.md)" > /tmp/detailed_overview.txt || {
-            echo "Failed to generate detailed overview with suggest, trying explain"
-            gh copilot explain --model gpt-5-mini "Create a detailed technical overview of this GitHub activity, organized by type: $(cat /tmp/activity.md)" > /tmp/detailed_overview.txt
-          }
+          # Create prompt file for detailed overview
+          cat > /tmp/detail_prompt.txt << 'EOF'
+Based on the following GitHub activity from the past week, create a detailed weekly overview with sections for different types of changes (commits, pull requests, issues). Include relevant details and provide context about the significance of changes. Format as markdown.
+
+EOF
+          cat /tmp/activity.md >> /tmp/detail_prompt.txt
+          
+          # Use gh copilot to generate detailed overview
+          gh copilot suggest -p "$(cat /tmp/detail_prompt.txt)" --model gpt-5-mini > /tmp/detailed_overview.txt
 
       - name: Create News Post
         run: |
