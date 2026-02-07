@@ -1,0 +1,231 @@
+/* Project Cards Styling */
+
+.hero-section {
+  margin-bottom: 3rem;
+  padding: 2rem 0;
+  border-bottom: 2px solid #e5e5e5;
+}
+
+.hero-section h1 {
+  margin-bottom: 1rem;
+  color: #303030;
+}
+
+.hero-section .lead {
+  font-size: 1.2rem;
+  color: #515151;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.projects-section {
+  margin-bottom: 3rem;
+}
+
+.projects-section h2 {
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e5e5;
+  color: #303030;
+}
+
+.category-intro {
+  margin-bottom: 2rem;
+  color: #515151;
+  font-size: 1.05rem;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.project-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.project-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-color: #268bd2;
+  transform: translateY(-2px);
+}
+
+.project-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  color: #268bd2;
+}
+
+.project-card h3 a {
+  color: #268bd2;
+  text-decoration: none;
+}
+
+.project-card h3 a:hover {
+  text-decoration: underline;
+}
+
+.project-tagline {
+  font-size: 0.95rem;
+  color: #717171;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.project-description {
+  color: #515151;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.project-features {
+  margin: 1rem 0;
+  padding-left: 1.25rem;
+}
+
+.project-features li {
+  color: #515151;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.project-links {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e5e5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.project-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.8rem;
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #268bd2;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.project-link:hover {
+  background: #268bd2;
+  color: #fff;
+  border-color: #268bd2;
+}
+
+.project-link::before {
+  content: "→";
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+.project-link.github::before {
+  content: "⚙";
+}
+
+.project-link.docs::before {
+  content: "📖";
+}
+
+.project-link.pypi::before {
+  content: "📦";
+}
+
+/* Topics/Tags */
+.project-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.topic-tag {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  background: #f0f7fb;
+  color: #268bd2;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .hero-section {
+    padding: 1rem 0;
+  }
+  
+  .project-links {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Blog section */
+.news-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e5e5e5;
+}
+
+.news-section h2 {
+  margin-bottom: 1.5rem;
+}
+
+.news-list {
+  list-style: none;
+  padding: 0;
+}
+
+.news-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.news-item:last-child {
+  border-bottom: none;
+}
+
+.news-date {
+  color: #9a9a9a;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.news-title {
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.news-title a {
+  color: #303030;
+  text-decoration: none;
+}
+
+.news-title a:hover {
+  color: #268bd2;
+}
+
+.news-excerpt {
+  color: #515151;
+  font-size: 0.95rem;
+}

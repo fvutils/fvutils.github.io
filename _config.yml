@@ -4,7 +4,6 @@ tagline:             'Functional Verification Utilities'
 description:         ''
 url:                 ''
 baseurl:             ''
-paginate:            5
 #permalink:           pretty
 
 exclude:
@@ -20,10 +19,6 @@ rooturl: http://fvutils.github.io
   
 github:
   repo: http://github.com/fvutils
-
-# Gems
-plugins:
-  - jekyll-paginate
 
 # Custom vars
 version:             1.0.0
