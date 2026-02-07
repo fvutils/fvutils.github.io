@@ -1,4 +1,7 @@
 name: Weekly News Report
+
+# Generates weekly news reports from organization activity
+
 on:
   schedule:
     # Run every Monday at 9:00 AM UTC
