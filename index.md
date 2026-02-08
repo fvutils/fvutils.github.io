@@ -208,21 +208,12 @@ title: Home
   </div>
 </div>
 
-<div class="news-section">
-  <h2>Latest News</h2>
-  {% if site.posts.size > 0 %}
-    <ul class="news-list">
-      {% for post in site.posts limit:5 %}
-      <li class="news-item">
-        <div class="news-date">{{ post.date | date_to_string }}</div>
-        <h3 class="news-title"><a href="{{ post.url | absolute_url }}">{{ post.title }}</a></h3>
-        <p class="news-excerpt">{{ post.excerpt | strip_html | truncatewords: 30 }}</p>
-      </li>
-      {% endfor %}
-    </ul>
-    <p><a href="/archive.html">View all news →</a></p>
-  {% else %}
-    <p>Check back soon for updates on FVUtils projects!</p>
-  {% endif %}
+<div id="weekly-updates-container">
+  <div class="news-section">
+    <h2>Weekly Updates</h2>
+    <p>Loading weekly updates...</p>
+  </div>
 </div>
+
+<script src="{{ '/public/js/discussion-feed.js' | relative_url }}"></script>
 

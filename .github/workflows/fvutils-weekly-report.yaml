@@ -6,23 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
+  discussions: write
 
 jobs:
   generate-news:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Install GitHub CLI
         run: |
           type -p gh >/dev/null || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
@@ -98,53 +89,48 @@ EOFPROMPT
           
           gh copilot suggest -p "$(cat /tmp/detail_prompt.txt)" --model gpt-5-mini > /tmp/detailed_overview.txt
 
-      - name: Create News Post
+      - name: Create Discussion Post
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          POST_DATE=$(date -u +%Y-%m-%d)
           WEEK_NUM=$(date -u +%V)
           YEAR=$(date -u +%Y)
-          POST_FILE="_posts/${POST_DATE}-weekly-update-${YEAR}-w${WEEK_NUM}.md"
+          TITLE="Weekly Update - Week $WEEK_NUM, $YEAR"
           
-          cat > "$POST_FILE" << 'EOFPOST'
----
-layout: post
-title: "FVUtils Weekly Update - Week WEEK_NUM, YEAR"
-date: POST_DATE
----
-
-SHORT_NEWS
+          # Combine short summary and detailed overview
+          BODY=$(cat << 'EOFBODY'
+$(cat /tmp/short_news.txt)
 
 ## Detailed Activity Overview
 
-DETAILED_OVERVIEW
+$(cat /tmp/detailed_overview.txt)
 
 ---
 
 *This weekly update was automatically generated based on activity across FVUtils repositories.*
-EOFPOST
+EOFBODY
+)
           
-          sed -i "s/WEEK_NUM/$WEEK_NUM/g" "$POST_FILE"
-          sed -i "s/YEAR/$YEAR/g" "$POST_FILE"
-          sed -i "s/POST_DATE/$POST_DATE/g" "$POST_FILE"
+          # Evaluate the variables in the body
+          BODY=$(eval echo "$BODY")
           
-          sed -i "/SHORT_NEWS/r /tmp/short_news.txt" "$POST_FILE"
-          sed -i "/SHORT_NEWS/d" "$POST_FILE"
+          # Escape the body for JSON
+          BODY_JSON=$(jq -n --arg body "$BODY" '$body')
           
-          sed -i "/DETAILED_OVERVIEW/r /tmp/detailed_overview.txt" "$POST_FILE"
-          sed -i "/DETAILED_OVERVIEW/d" "$POST_FILE"
-          
-          echo "Created post: $POST_FILE"
-          cat "$POST_FILE"
-
-      - name: Commit and Push
-        run: |
-          git add _posts/*.md
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            POST_DATE=$(date -u +%Y-%m-%d)
-            WEEK_NUM=$(date -u +%V)
-            git commit -m "Add weekly update for week $WEEK_NUM"
-            git push
-            echo "Weekly news post published!"
-          fi
+          # Create the discussion using GraphQL API
+          gh api graphql -f query="
+            mutation {
+              createDiscussion(input: {
+                repositoryId: \"R_kgDOHMTiUw\"
+                categoryId: \"DIC_kwDOHMTiU84C2BrA\"
+                title: \"$TITLE\"
+                body: $BODY_JSON
+              }) {
+                discussion {
+                  id
+                  url
+                  title
+                }
+              }
+            }
+          " | jq -r '.data.createDiscussion.discussion | "Created discussion: \(.title)\nURL: \(.url)"'
