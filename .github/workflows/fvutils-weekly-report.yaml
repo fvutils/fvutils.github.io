@@ -21,6 +21,12 @@ jobs:
           && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
           && sudo apt update \
           && sudo apt install gh -y)
+      
+      - name: Install GitHub Copilot CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-copilot || gh extension upgrade gh-copilot || true
 
       - name: Gather Weekly Activity
         env:
@@ -65,6 +71,33 @@ jobs:
           
           cat /tmp/activity.md
 
+      - name: Generate AI Summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Read the activity data
+          ACTIVITY=$(cat /tmp/activity.md)
+          
+          # Create prompt for summary
+          cat > /tmp/prompt.txt << 'PROMPT_EOF'
+Based on the following weekly activity report, create a concise summary paragraph (3-4 sentences) that highlights the key accomplishments and identifies a theme for the week's work. Focus on what was achieved and the overall direction of development.
+
+PROMPT_EOF
+          
+          cat /tmp/activity.md >> /tmp/prompt.txt
+          
+          # Generate summary using gh copilot with gpt-5-mini
+          # Use 'gh copilot' in non-interactive mode to get a text response
+          gh copilot explain --model gpt-5-mini "$(cat /tmp/prompt.txt)" 2>&1 | tee /tmp/copilot_output.txt || true
+          
+          # Extract the meaningful content, skip headers/footers from gh copilot
+          # The output usually has explanation text we want to capture
+          grep -v "^Explanation:" /tmp/copilot_output.txt | grep -v "^$" | head -n 10 > /tmp/summary.md
+          
+          echo "" >> /tmp/summary.md
+          echo "Generated AI summary:"
+          cat /tmp/summary.md
+
       - name: Create Discussion Post
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,8 +106,14 @@ jobs:
           YEAR=$(date -u +%Y)
           TITLE="Weekly Update - Week $WEEK_NUM, $YEAR"
           
-          # Use the activity report as the discussion body
-          cat /tmp/activity.md > /tmp/discussion_body.md
+          # Build discussion body with AI summary first, then detailed activity
+          echo "## Summary" > /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          cat /tmp/summary.md >> /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          echo "---" >> /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          cat /tmp/activity.md >> /tmp/discussion_body.md
           echo "" >> /tmp/discussion_body.md
           echo "---" >> /tmp/discussion_body.md
           echo "" >> /tmp/discussion_body.md
