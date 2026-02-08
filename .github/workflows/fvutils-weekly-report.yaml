@@ -65,30 +65,6 @@ jobs:
           
           cat /tmp/activity.md
 
-      - name: Generate Short News Update
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          cat > /tmp/prompt.txt << 'EOF'
-          Based on the following GitHub activity from the past week, create a concise 2-3 paragraph news update suitable for a website news section. Focus on the most significant changes and developments. Keep it professional and informative.
-          
-          EOF
-          cat /tmp/activity.md >> /tmp/prompt.txt
-          
-          gh copilot -p "$(cat /tmp/prompt.txt)" > /tmp/short_news.txt
-
-      - name: Generate Detailed Overview
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          cat > /tmp/detail_prompt.txt << 'EOF'
-          Based on the following GitHub activity from the past week, create a detailed weekly overview with sections for different types of changes (commits, pull requests, issues). Include relevant details and provide context about the significance of changes. Format as markdown.
-          
-          EOF
-          cat /tmp/activity.md >> /tmp/detail_prompt.txt
-          
-          gh copilot -p "$(cat /tmp/detail_prompt.txt)" > /tmp/detailed_overview.txt
-
       - name: Create Discussion Post
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,12 +73,8 @@ jobs:
           YEAR=$(date -u +%Y)
           TITLE="Weekly Update - Week $WEEK_NUM, $YEAR"
           
-          # Combine short summary and detailed overview into body
-          cat /tmp/short_news.txt > /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          echo "## Detailed Activity Overview" >> /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          cat /tmp/detailed_overview.txt >> /tmp/discussion_body.md
+          # Use the activity report as the discussion body
+          cat /tmp/activity.md > /tmp/discussion_body.md
           echo "" >> /tmp/discussion_body.md
           echo "---" >> /tmp/discussion_body.md
           echo "" >> /tmp/discussion_body.md
