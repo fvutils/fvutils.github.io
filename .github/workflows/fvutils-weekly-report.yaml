@@ -80,9 +80,9 @@ jobs:
           
           # Create prompt for summary
           cat > /tmp/prompt.txt << 'PROMPT_EOF'
-Based on the following weekly activity report, create a concise summary paragraph (3-4 sentences) that highlights the key accomplishments and identifies a theme for the week's work. Focus on what was achieved and the overall direction of development.
-
-PROMPT_EOF
+          Based on the following weekly activity report, create a concise summary paragraph (3-4 sentences) that highlights the key accomplishments and identifies a theme for the week's work. Focus on what was achieved and the overall direction of development.
+          
+          PROMPT_EOF
           
           cat /tmp/activity.md >> /tmp/prompt.txt
           
