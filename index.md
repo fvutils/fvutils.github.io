@@ -12,6 +12,15 @@ title: Home
   </p>
 </div>
 
+<div id="weekly-updates-container">
+  <div class="news-section">
+    <h2>Weekly Updates</h2>
+    <p>Loading weekly updates...</p>
+  </div>
+</div>
+
+<script src="{{ '/public/js/discussion-feed.js' | relative_url }}"></script>
+
 <div class="projects-section">
   <h2>User-Facing Tools</h2>
   <p class="category-intro">
@@ -208,12 +217,4 @@ title: Home
   </div>
 </div>
 
-<div id="weekly-updates-container">
-  <div class="news-section">
-    <h2>Weekly Updates</h2>
-    <p>Loading weekly updates...</p>
-  </div>
-</div>
-
-<script src="{{ '/public/js/discussion-feed.js' | relative_url }}"></script>
 
