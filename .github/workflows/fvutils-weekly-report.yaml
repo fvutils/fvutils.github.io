@@ -67,7 +67,7 @@ jobs:
 
       - name: Generate Short News Update
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           cat > /tmp/prompt.txt << 'EOF'
           Based on the following GitHub activity from the past week, create a concise 2-3 paragraph news update suitable for a website news section. Focus on the most significant changes and developments. Keep it professional and informative.
@@ -79,7 +79,7 @@ jobs:
 
       - name: Generate Detailed Overview
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           cat > /tmp/detail_prompt.txt << 'EOF'
           Based on the following GitHub activity from the past week, create a detailed weekly overview with sections for different types of changes (commits, pull requests, issues). Include relevant details and provide context about the significance of changes. Format as markdown.
