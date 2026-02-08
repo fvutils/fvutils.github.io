@@ -1,56 +1,37 @@
 /**
- * Fetch and display GitHub Discussions for Weekly Updates using GraphQL API
+ * Fetch and display GitHub Discussions for Weekly Updates using REST API
  */
 (function() {
   'use strict';
 
-  const GRAPHQL_API = 'https://api.github.com/graphql';
-  const OWNER = 'fvutils';
-  const REPO = 'fvutils.github.io';
-  const CATEGORY_ID = 'DIC_kwDOHMTiU84C2BrA';
+  const API_URL = 'https://api.github.com/repos/fvutils/fvutils.github.io/discussions';
+  const CATEGORY_SLUG = 'weekly-updates';
   const MAX_ITEMS = 5;
 
   /**
-   * Fetch discussions using GitHub GraphQL API
+   * Fetch discussions using GitHub REST API
    */
   async function fetchDiscussions() {
-    const query = `
-      query {
-        repository(owner: "${OWNER}", name: "${REPO}") {
-          discussions(first: ${MAX_ITEMS}, categoryId: "${CATEGORY_ID}", orderBy: {field: CREATED_AT, direction: DESC}) {
-            nodes {
-              number
-              title
-              url
-              createdAt
-              bodyText
-            }
-          }
-        }
-      }
-    `;
-
     try {
-      const response = await fetch(GRAPHQL_API, {
-        method: 'POST',
+      const response = await fetch(API_URL, {
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query })
+          'Accept': 'application/vnd.github+json',
+        }
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const discussions = await response.json();
       
-      if (data.errors) {
-        console.error('GraphQL errors:', data.errors);
-        return null;
-      }
+      // Filter by category and sort by created date
+      const filtered = discussions
+        .filter(d => d.category.slug === CATEGORY_SLUG)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, MAX_ITEMS);
 
-      return data.data.repository.discussions.nodes;
+      return filtered;
     } catch (error) {
       console.error('Error fetching discussions:', error);
       return null;
@@ -96,7 +77,7 @@
     `;
     
     discussions.forEach(discussion => {
-      const date = new Date(discussion.createdAt);
+      const date = new Date(discussion.created_at);
       const formattedDate = date.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
@@ -106,8 +87,8 @@
       html += `
         <li class="news-item">
           <div class="news-date">${formattedDate}</div>
-          <h3 class="news-title"><a href="${discussion.url}">${discussion.title}</a></h3>
-          <p class="news-excerpt">${getExcerpt(discussion.bodyText)}</p>
+          <h3 class="news-title"><a href="${discussion.html_url}">${discussion.title}</a></h3>
+          <p class="news-excerpt">${getExcerpt(discussion.body)}</p>
         </li>
       `;
     });
