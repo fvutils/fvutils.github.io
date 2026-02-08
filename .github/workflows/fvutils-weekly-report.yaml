@@ -75,7 +75,7 @@ jobs:
           EOF
           cat /tmp/activity.md >> /tmp/prompt.txt
           
-          gh copilot suggest -p "$(cat /tmp/prompt.txt)" --model gpt-5-mini > /tmp/short_news.txt
+          gh copilot -p "$(cat /tmp/prompt.txt)" > /tmp/short_news.txt
 
       - name: Generate Detailed Overview
         env:
@@ -87,7 +87,7 @@ jobs:
           EOF
           cat /tmp/activity.md >> /tmp/detail_prompt.txt
           
-          gh copilot suggest -p "$(cat /tmp/detail_prompt.txt)" --model gpt-5-mini > /tmp/detailed_overview.txt
+          gh copilot -p "$(cat /tmp/detail_prompt.txt)" > /tmp/detailed_overview.txt
 
       - name: Create Discussion Post
         env:
