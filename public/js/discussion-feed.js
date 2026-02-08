@@ -39,6 +39,30 @@
   }
 
   /**
+   * Extract a summary from the activity report
+   */
+  function extractSummary(body) {
+    // Count items in each section
+    const commits = (body.match(/^- .+ \(.{7}\) in fvutils\//gm) || []).length;
+    
+    // Match PRs in the Pull Requests section only
+    const prSection = body.match(/### Pull Requests\n([\s\S]*?)(?=\n###|$)/);
+    const prs = prSection ? (prSection[1].match(/^- #\d+:/gm) || []).length : 0;
+    
+    // Build a natural language summary
+    const parts = [];
+    if (commits > 0) parts.push(`${commits} commit${commits !== 1 ? 's' : ''}`);
+    if (prs > 0) parts.push(`${prs} pull request${prs !== 1 ? 's' : ''}`);
+    
+    if (parts.length === 0) {
+      return 'No significant activity this week.';
+    }
+    
+    const summary = parts.join(' and ');
+    return `This week saw ${summary} across FVUtils repositories.`;
+  }
+
+  /**
    * Get excerpt from body text
    */
   function getExcerpt(text, maxWords = 30) {
@@ -84,11 +108,13 @@
         day: 'numeric' 
       });
       
+      const summary = extractSummary(discussion.body);
+      
       html += `
         <li class="news-item">
           <div class="news-date">${formattedDate}</div>
-          <h3 class="news-title"><a href="${discussion.html_url}">${discussion.title}</a></h3>
-          <p class="news-excerpt">${getExcerpt(discussion.body)}</p>
+          <h3 class="news-title">${discussion.title}</h3>
+          <p class="news-excerpt">${summary} <a href="${discussion.html_url}">View details →</a></p>
         </li>
       `;
     });
@@ -121,12 +147,17 @@
    * Initialize - fetch and render discussions
    */
   async function init() {
-    const discussions = await fetchDiscussions();
-    
-    if (discussions === null) {
+    try {
+      const discussions = await fetchDiscussions();
+      
+      if (discussions === null || discussions.length === 0) {
+        showError();
+      } else {
+        renderDiscussions(discussions);
+      }
+    } catch (error) {
+      console.error('Failed to initialize discussions:', error);
       showError();
-    } else {
-      renderDiscussions(discussions);
     }
   }
 
