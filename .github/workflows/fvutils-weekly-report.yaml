@@ -69,10 +69,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > /tmp/prompt.txt << 'EOFPROMPT'
-Based on the following GitHub activity from the past week, create a concise 2-3 paragraph news update suitable for a website news section. Focus on the most significant changes and developments. Keep it professional and informative.
-
-EOFPROMPT
+          cat > /tmp/prompt.txt << 'EOF'
+          Based on the following GitHub activity from the past week, create a concise 2-3 paragraph news update suitable for a website news section. Focus on the most significant changes and developments. Keep it professional and informative.
+          
+          EOF
           cat /tmp/activity.md >> /tmp/prompt.txt
           
           gh copilot suggest -p "$(cat /tmp/prompt.txt)" --model gpt-5-mini > /tmp/short_news.txt
@@ -81,10 +81,10 @@ EOFPROMPT
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > /tmp/detail_prompt.txt << 'EOFPROMPT'
-Based on the following GitHub activity from the past week, create a detailed weekly overview with sections for different types of changes (commits, pull requests, issues). Include relevant details and provide context about the significance of changes. Format as markdown.
-
-EOFPROMPT
+          cat > /tmp/detail_prompt.txt << 'EOF'
+          Based on the following GitHub activity from the past week, create a detailed weekly overview with sections for different types of changes (commits, pull requests, issues). Include relevant details and provide context about the significance of changes. Format as markdown.
+          
+          EOF
           cat /tmp/activity.md >> /tmp/detail_prompt.txt
           
           gh copilot suggest -p "$(cat /tmp/detail_prompt.txt)" --model gpt-5-mini > /tmp/detailed_overview.txt
@@ -97,34 +97,29 @@ EOFPROMPT
           YEAR=$(date -u +%Y)
           TITLE="Weekly Update - Week $WEEK_NUM, $YEAR"
           
-          # Combine short summary and detailed overview
-          BODY=$(cat << 'EOFBODY'
-$(cat /tmp/short_news.txt)
-
-## Detailed Activity Overview
-
-$(cat /tmp/detailed_overview.txt)
-
----
-
-*This weekly update was automatically generated based on activity across FVUtils repositories.*
-EOFBODY
-)
+          # Combine short summary and detailed overview into body
+          cat /tmp/short_news.txt > /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          echo "## Detailed Activity Overview" >> /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          cat /tmp/detailed_overview.txt >> /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          echo "---" >> /tmp/discussion_body.md
+          echo "" >> /tmp/discussion_body.md
+          echo "*This weekly update was automatically generated based on activity across FVUtils repositories.*" >> /tmp/discussion_body.md
           
-          # Evaluate the variables in the body
-          BODY=$(eval echo "$BODY")
-          
-          # Escape the body for JSON
-          BODY_JSON=$(jq -n --arg body "$BODY" '$body')
+          # Read body content
+          BODY=$(cat /tmp/discussion_body.md)
           
           # Create the discussion using GraphQL API
-          gh api graphql -f query="
-            mutation {
+          # We use jq to properly escape the JSON fields
+          gh api graphql -f query='
+            mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
               createDiscussion(input: {
-                repositoryId: \"R_kgDOHMTiUw\"
-                categoryId: \"DIC_kwDOHMTiU84C2BrA\"
-                title: \"$TITLE\"
-                body: $BODY_JSON
+                repositoryId: $repositoryId
+                categoryId: $categoryId
+                title: $title
+                body: $body
               }) {
                 discussion {
                   id
@@ -133,4 +128,7 @@ EOFBODY
                 }
               }
             }
-          " | jq -r '.data.createDiscussion.discussion | "Created discussion: \(.title)\nURL: \(.url)"'
+          ' -f repositoryId="R_kgDOHMTiUw" \
+            -f categoryId="DIC_kwDOHMTiU84C2BrA" \
+            -f title="$TITLE" \
+            -f body="$BODY" | jq -r '.data.createDiscussion.discussion | "Created discussion: \(.title)\nURL: \(.url)"'
