@@ -78,16 +78,24 @@ jobs:
           # Read the activity data
           ACTIVITY=$(cat /tmp/activity.md)
           
-          # Create a simple summary using key information extraction
-          # Count commits, PRs, and issues
-          COMMIT_COUNT=$(grep -c "^- " /tmp/activity.md | head -1 || echo "0")
+          # Create prompt for summary
+          cat > /tmp/prompt.txt << 'PROMPT_EOF'
+          Based on the following weekly activity report, create a concise summary paragraph (3-4 sentences) that highlights the key accomplishments and identifies a theme for the week's work. Focus on what was achieved and the overall direction of development.
           
-          # Create a summary
-          cat > /tmp/summary.md << 'SUMMARY_EOF'
-          This week saw continued development across the FVUtils project ecosystem with various commits, pull requests, and issue updates across multiple repositories. The team maintained active development focusing on feature enhancements, bug fixes, and project improvements.
-          SUMMARY_EOF
+          PROMPT_EOF
           
-          echo "Generated summary:"
+          cat /tmp/activity.md >> /tmp/prompt.txt
+          
+          # Generate summary using gh copilot with gpt-5-mini
+          # Use 'gh copilot' in non-interactive mode to get a text response
+          gh copilot explain --model gpt-5-mini "$(cat /tmp/prompt.txt)" 2>&1 | tee /tmp/copilot_output.txt || true
+          
+          # Extract the meaningful content, skip headers/footers from gh copilot
+          # The output usually has explanation text we want to capture
+          grep -v "^Explanation:" /tmp/copilot_output.txt | grep -v "^$" | head -n 10 > /tmp/summary.md
+          
+          echo "" >> /tmp/summary.md
+          echo "Generated AI summary:"
           cat /tmp/summary.md
 
       - name: Create Discussion Post
