@@ -1,34 +1,56 @@
 /**
- * Fetch and display GitHub Discussions RSS feed for Weekly Updates
+ * Fetch and display GitHub Discussions for Weekly Updates using GraphQL API
  */
 (function() {
   'use strict';
 
-  const RSS_FEED_URL = 'https://github.com/fvutils/fvutils.github.io/discussions.rss';
-  const CATEGORY_SLUG = 'weekly-updates';
+  const GRAPHQL_API = 'https://api.github.com/graphql';
+  const OWNER = 'fvutils';
+  const REPO = 'fvutils.github.io';
+  const CATEGORY_ID = 'DIC_kwDOHMTiU84C2BrA';
   const MAX_ITEMS = 5;
 
   /**
-   * Fetch and parse the RSS feed
+   * Fetch discussions using GitHub GraphQL API
    */
   async function fetchDiscussions() {
+    const query = `
+      query {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          discussions(first: ${MAX_ITEMS}, categoryId: "${CATEGORY_ID}", orderBy: {field: CREATED_AT, direction: DESC}) {
+            nodes {
+              number
+              title
+              url
+              createdAt
+              bodyText
+            }
+          }
+        }
+      }
+    `;
+
     try {
-      const response = await fetch(RSS_FEED_URL);
+      const response = await fetch(GRAPHQL_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query })
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
       
-      const text = await response.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(text, 'text/xml');
-      
-      // Check for parsing errors
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
-        throw new Error('XML parsing error');
+      if (data.errors) {
+        console.error('GraphQL errors:', data.errors);
+        return null;
       }
-      
-      return parseRSSItems(xmlDoc);
+
+      return data.data.repository.discussions.nodes;
     } catch (error) {
       console.error('Error fetching discussions:', error);
       return null;
@@ -36,50 +58,9 @@
   }
 
   /**
-   * Parse RSS items and filter for Weekly Updates category
+   * Get excerpt from body text
    */
-  function parseRSSItems(xmlDoc) {
-    const items = xmlDoc.querySelectorAll('item');
-    const discussions = [];
-    
-    items.forEach(item => {
-      const link = item.querySelector('link')?.textContent || '';
-      const title = item.querySelector('title')?.textContent || '';
-      const pubDate = item.querySelector('pubDate')?.textContent || '';
-      const description = item.querySelector('description')?.textContent || '';
-      
-      // Filter by category slug in the link
-      // Discussion links look like: https://github.com/fvutils/fvutils.github.io/discussions/categories/weekly-updates/...
-      if (link.includes(`/categories/${CATEGORY_SLUG}`)) {
-        discussions.push({
-          title: title,
-          link: link,
-          date: new Date(pubDate),
-          description: description
-        });
-      }
-    });
-    
-    // Sort by date (newest first) and limit to MAX_ITEMS
-    discussions.sort((a, b) => b.date - a.date);
-    return discussions.slice(0, MAX_ITEMS);
-  }
-
-  /**
-   * Format date as readable string
-   */
-  function formatDate(date) {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
-  }
-
-  /**
-   * Extract plain text excerpt from HTML description
-   */
-  function getExcerpt(html, maxWords = 30) {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const text = tempDiv.textContent || tempDiv.innerText || '';
+  function getExcerpt(text, maxWords = 30) {
     const words = text.trim().split(/\s+/);
     
     if (words.length > maxWords) {
@@ -115,11 +96,18 @@
     `;
     
     discussions.forEach(discussion => {
+      const date = new Date(discussion.createdAt);
+      const formattedDate = date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
       html += `
         <li class="news-item">
-          <div class="news-date">${formatDate(discussion.date)}</div>
-          <h3 class="news-title"><a href="${discussion.link}">${discussion.title}</a></h3>
-          <p class="news-excerpt">${getExcerpt(discussion.description)}</p>
+          <div class="news-date">${formattedDate}</div>
+          <h3 class="news-title"><a href="${discussion.url}">${discussion.title}</a></h3>
+          <p class="news-excerpt">${getExcerpt(discussion.bodyText)}</p>
         </li>
       `;
     });
