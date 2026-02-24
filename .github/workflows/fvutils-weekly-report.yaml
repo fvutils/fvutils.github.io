@@ -11,7 +11,8 @@ permissions:
   discussions: write
 
 env:
-  MODEL: gpt-5-mini-high
+  MODEL: gpt-4o
+  MODELS_ENDPOINT: https://models.inference.ai.azure.com/chat/completions
 
 jobs:
   generate-news:
@@ -123,9 +124,12 @@ jobs:
           print("Request JSON written.")
           PYEOF
 
-          gh api -X POST "/models/$MODEL/chat/completions" \
-            --input /tmp/request.json \
-            --jq '.choices[0].message.content' \
+          curl -s -f \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/request.json \
+            "$MODELS_ENDPOINT" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['choices'][0]['message']['content'])" \
             > /tmp/news_item.md 2>/tmp/api_error.txt \
           || {
             echo "WARNING: GitHub Models API call failed:"
