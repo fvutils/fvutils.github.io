@@ -2,7 +2,7 @@ name: FVUtils Weekly Report
 
 on:
   schedule:
-  - cron: '0 9 * * 1'
+    - cron: '0 9 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -10,137 +10,147 @@ permissions:
   pull-requests: read
   discussions: write
 
+env:
+  MODEL: gpt-5-mini-high
+
 jobs:
   generate-news:
     runs-on: ubuntu-latest
     steps:
-      - name: Install GitHub CLI
-        run: |
-          type -p gh >/dev/null || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && sudo apt update \
-          && sudo apt install gh -y)
-      
-      - name: Install GitHub Copilot CLI
+      # ── Step 1: Identify active repos ────────────────────────────────────────
+      # Find fvutils repos that have had pushes in the past 7 days.
+      - name: Identify active repos
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh extension install github/gh-copilot || gh extension upgrade gh-copilot || true
+          END_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START_DATE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "START_DATE=$START_DATE" >> $GITHUB_ENV
+          echo "END_DATE=$END_DATE"     >> $GITHUB_ENV
 
-      - name: Gather Weekly Activity
+          echo "Scanning fvutils org for repos pushed since $START_DATE ..."
+          gh repo list fvutils --limit 100 --json name,pushedAt \
+            --jq --argjson start "\"$START_DATE\"" \
+              '.[] | select(.pushedAt >= $start) | .name' \
+            > /tmp/active_repos.txt
+
+          echo "Active repos:"
+          cat /tmp/active_repos.txt
+
+      # ── Step 2: Collect details from active repos ────────────────────────────
+      # For each active repo, gather commits, merged PRs, and updated issues.
+      - name: Collect details from active repos
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          END_DATE=$(date -u +%Y-%m-%d)
-          START_DATE=$(date -u -d '7 days ago' +%Y-%m-%d)
-          
-          echo "Gathering activity from $START_DATE to $END_DATE"
-          
-          echo "## Recent Activity Report ($START_DATE to $END_DATE)" > /tmp/activity.md
-          echo "" >> /tmp/activity.md
-          
-          REPOS=$(gh repo list fvutils --limit 100 --json name --jq '.[].name')
-          
-          echo "### Commits" >> /tmp/activity.md
-          for repo in $REPOS; do
-            echo "Checking $repo..."
-            COMMITS=$(gh api "repos/fvutils/$repo/commits?since=${START_DATE}T00:00:00Z&until=${END_DATE}T23:59:59Z" --jq '.[] | "- \(.commit.message | split("\n")[0]) (\(.sha[0:7])) in fvutils/\(env.repo)"' 2>/dev/null || echo "")
+          : > /tmp/activity.md   # start fresh
+
+          while IFS= read -r repo; do
+            echo "## fvutils/$repo" >> /tmp/activity.md
+            echo "" >> /tmp/activity.md
+
+            # Commits
+            COMMITS=$(gh api \
+              "repos/fvutils/$repo/commits?since=${START_DATE}&until=${END_DATE}&per_page=50" \
+              --jq '.[] | "- \(.commit.message | split("\n")[0])  [\(.sha[0:7])]"' \
+              2>/dev/null || true)
             if [ -n "$COMMITS" ]; then
-              echo "$COMMITS" >> /tmp/activity.md
+              echo "### Commits" >> /tmp/activity.md
+              echo "$COMMITS"   >> /tmp/activity.md
+              echo ""           >> /tmp/activity.md
             fi
-          done
-          echo "" >> /tmp/activity.md
-          
-          echo "### Pull Requests" >> /tmp/activity.md
-          for repo in $REPOS; do
-            PRS=$(gh pr list --repo fvutils/$repo --state all --search "updated:>=$START_DATE" --json number,title,state,author --jq '.[] | "- #\(.number): \(.title) (\(.state)) by @\(.author.login) in fvutils/\(env.repo)"' 2>/dev/null || echo "")
+
+            # Pull requests (merged or opened this week)
+            PRS=$(gh pr list --repo "fvutils/$repo" --state all \
+              --search "updated:>=$(echo $START_DATE | cut -c1-10)" \
+              --json number,title,state,author \
+              --jq '.[] | "- #\(.number) \(.title) [\(.state)] (@\(.author.login))"' \
+              2>/dev/null || true)
             if [ -n "$PRS" ]; then
-              echo "$PRS" >> /tmp/activity.md
+              echo "### Pull Requests" >> /tmp/activity.md
+              echo "$PRS"             >> /tmp/activity.md
+              echo ""                 >> /tmp/activity.md
             fi
-          done
-          echo "" >> /tmp/activity.md
-          
-          echo "### Issues" >> /tmp/activity.md
-          for repo in $REPOS; do
-            ISSUES=$(gh issue list --repo fvutils/$repo --state all --search "updated:>=$START_DATE" --json number,title,state,author --jq '.[] | "- #\(.number): \(.title) (\(.state)) by @\(.author.login) in fvutils/\(env.repo)"' 2>/dev/null || echo "")
+
+            # Issues opened or updated this week
+            ISSUES=$(gh issue list --repo "fvutils/$repo" --state all \
+              --search "updated:>=$(echo $START_DATE | cut -c1-10)" \
+              --json number,title,state,author \
+              --jq '.[] | "- #\(.number) \(.title) [\(.state)] (@\(.author.login))"' \
+              2>/dev/null || true)
             if [ -n "$ISSUES" ]; then
-              echo "$ISSUES" >> /tmp/activity.md
+              echo "### Issues" >> /tmp/activity.md
+              echo "$ISSUES"   >> /tmp/activity.md
+              echo ""          >> /tmp/activity.md
             fi
-          done
-          
+
+          done < /tmp/active_repos.txt
+
+          echo "--- collected activity ---"
           cat /tmp/activity.md
 
-      - name: Generate AI Summary
+      # ── Step 3: Generate news item via gh api /models/$MODEL ─────────────────
+      # Pass the raw activity to gpt-5-mini-high and ask for a polished news item.
+      - name: Generate news item
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Read the activity data
           ACTIVITY=$(cat /tmp/activity.md)
-          
-          # Create prompt file for AI model
-          cat > /tmp/prompt.txt << 'PROMPT_EOF'
-          Based on the following weekly activity report, create a concise summary paragraph (2-3 sentences) highlighting the key accomplishments and overall development direction.
-          
-          PROMPT_EOF
-          
-          cat /tmp/activity.md >> /tmp/prompt.txt
-          
-          # Read the complete prompt
-          PROMPT=$(cat /tmp/prompt.txt)
-          
-          # Use GitHub Models API (GPT-4) to generate summary
-          RESPONSE=$(gh api \
-            -X POST \
-            /models/gpt-4o-mini/chat/completions \
-            -f model='gpt-4o-mini' \
-            -f messages[][role]='user' \
-            -f messages[][content]="$PROMPT" \
-            -F max_tokens=150 \
-            -F temperature=0.7 2>&1) || {
-            # Fallback if API fails: create basic summary
-            COMMIT_COUNT=$(grep -c "^- .*(.{7}) in fvutils/" /tmp/activity.md || echo "0")
-            echo "This week saw continued development across FVUtils repositories with $COMMIT_COUNT commits and various updates. The team remains focused on enhancing features, fixing bugs, and improving project infrastructure." > /tmp/summary.md
-            echo "Fallback summary (API unavailable):"
-            cat /tmp/summary.md
-            exit 0
-          }
-          
-          # Extract the AI-generated content
-          echo "$RESPONSE" | jq -r '.choices[0].message.content' > /tmp/summary.md 2>/dev/null || {
-            # Fallback if parsing fails
-            echo "This week saw active development across FVUtils repositories with multiple commits, pull requests, and issue updates. Development continues with focus on feature enhancements and project improvements." > /tmp/summary.md
-          }
-          
-          echo "AI-generated summary:"
-          cat /tmp/summary.md
+          WEEK_END=$(date -u '+%d %b %Y')
 
-      - name: Create Discussion Post
+          # Build the prompt as a JSON payload using jq to handle escaping
+          jq -n \
+            --arg activity "$ACTIVITY" \
+            --arg week_end "$WEEK_END" \
+            --arg model "$MODEL" \
+            '{
+              model: $model,
+              messages: [{
+                role: "user",
+                content: (
+                  "You are a technical writer for an open-source verification tools project.\n\n" +
+                  "Below is raw weekly activity (commits, PRs, issues) from the fvutils GitHub org " +
+                  "for the week ending " + $week_end + ".\n\n" +
+                  $activity + "\n\n" +
+                  "Write a concise weekly news item suitable for the project website. " +
+                  "Include: a short overall summary paragraph, then a per-repo highlights section " +
+                  "using bullet points, and a brief 'What'\''s next' closing line. " +
+                  "Be factual, avoid hype, use past tense for completed work."
+                )
+              }],
+              max_tokens: 600,
+              temperature: 0.4
+            }' > /tmp/request.json
+
+          gh api -X POST "/models/$MODEL/chat/completions" \
+            --input /tmp/request.json \
+            --jq '.choices[0].message.content' \
+            > /tmp/news_item.md 2>/tmp/api_error.txt \
+          || {
+            echo "WARNING: GitHub Models API call failed:"
+            cat /tmp/api_error.txt
+            echo "Generating fallback news item..."
+            printf "## fvutils Weekly Highlights — week ending %s\n\n" "$WEEK_END" > /tmp/news_item.md
+            cat /tmp/activity.md >> /tmp/news_item.md
+            echo "" >> /tmp/news_item.md
+            echo "*Auto-generated from commit/PR/issue metadata — AI summarization unavailable.*" >> /tmp/news_item.md
+          }
+
+          echo "=== Generated news item ==="
+          cat /tmp/news_item.md
+
+      # ── Publish: post to fvutils/.github Discussions ─────────────────────────
+      - name: Post to Discussions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           WEEK_NUM=$(date -u +%V)
           YEAR=$(date -u +%Y)
-          TITLE="Weekly Update - Week $WEEK_NUM, $YEAR"
-          
-          # Build discussion body with AI summary first, then detailed activity
-          echo "## Summary" > /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          cat /tmp/summary.md >> /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          echo "---" >> /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          cat /tmp/activity.md >> /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          echo "---" >> /tmp/discussion_body.md
-          echo "" >> /tmp/discussion_body.md
-          echo "*This weekly update was automatically generated based on activity across FVUtils repositories.*" >> /tmp/discussion_body.md
-          
-          # Read body content
-          BODY=$(cat /tmp/discussion_body.md)
-          
-          # Create the discussion using GraphQL API
-          # We use jq to properly escape the JSON fields
+          TITLE="Weekly Highlights — Week $WEEK_NUM, $YEAR"
+
+          BODY=$(cat /tmp/news_item.md)
+          BODY="$BODY"$'\n\n---\n*Generated automatically by [fvutils-weekly-report](../actions/workflows/fvutils-weekly-report.yaml) using '"$MODEL"'.*'
+
           gh api graphql -f query='
             mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
               createDiscussion(input: {
@@ -149,14 +159,12 @@ jobs:
                 title: $title
                 body: $body
               }) {
-                discussion {
-                  id
-                  url
-                  title
-                }
+                discussion { id url title }
               }
             }
-          ' -f repositoryId="R_kgDOHMTiUw" \
+          ' \
+            -f repositoryId="R_kgDOHMTiUw" \
             -f categoryId="DIC_kwDOHMTiU84C2BrA" \
             -f title="$TITLE" \
-            -f body="$BODY" | jq -r '.data.createDiscussion.discussion | "Created discussion: \(.title)\nURL: \(.url)"'
+            -f body="$BODY" \
+          | jq -r '.data.createDiscussion.discussion | "Created: \(.title)\nURL: \(.url)"'
