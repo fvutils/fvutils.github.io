@@ -124,14 +124,27 @@ jobs:
           print("Request JSON written.")
           PYEOF
 
-          curl -s -f \
+          curl -s \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
             --data @/tmp/request.json \
             "$MODELS_ENDPOINT" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['choices'][0]['message']['content'])" \
-            > /tmp/news_item.md 2>/tmp/api_error.txt \
-          || {
+            > /tmp/api_response.json 2>/tmp/api_error.txt
+
+          echo "--- API response ---"
+          cat /tmp/api_response.json
+
+          python3 << 'PYEOF'
+          import sys, json
+          data = json.load(open('/tmp/api_response.json'))
+          if 'choices' in data:
+              with open('/tmp/news_item.md', 'w') as f:
+                  f.write(data['choices'][0]['message']['content'])
+          else:
+              print('ERROR:', data, file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+          if [ $? -ne 0 ]; then
             echo "WARNING: GitHub Models API call failed:"
             cat /tmp/api_error.txt
             echo "Generating fallback news item..."
@@ -139,7 +152,7 @@ jobs:
             cat /tmp/activity.md >> /tmp/news_item.md
             echo "" >> /tmp/news_item.md
             echo "*Auto-generated from commit/PR/issue metadata — AI summarization unavailable.*" >> /tmp/news_item.md
-          }
+          fi
 
           echo "=== Generated news item ==="
           cat /tmp/news_item.md
