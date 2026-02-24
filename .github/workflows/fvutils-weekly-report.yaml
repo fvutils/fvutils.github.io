@@ -95,32 +95,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ACTIVITY=$(cat /tmp/activity.md)
           WEEK_END=$(date -u '+%d %b %Y')
 
-          # Build the prompt as a JSON payload using jq to handle escaping
-          jq -n \
-            --arg activity "$ACTIVITY" \
-            --arg week_end "$WEEK_END" \
-            --arg model "$MODEL" \
-            '{
-              model: $model,
-              messages: [{
-                role: "user",
-                content: (
-                  "You are a technical writer for an open-source verification tools project.\n\n" +
-                  "Below is raw weekly activity (commits, PRs, issues) from the fvutils GitHub org " +
-                  "for the week ending " + $week_end + ".\n\n" +
-                  $activity + "\n\n" +
-                  "Write a concise weekly news item suitable for the project website. " +
-                  "Include: a short overall summary paragraph, then a per-repo highlights section " +
-                  "using bullet points, and a brief 'What'\''s next' closing line. " +
-                  "Be factual, avoid hype, use past tense for completed work."
-                )
-              }],
-              max_tokens: 600,
-              temperature: 0.4
-            }' > /tmp/request.json
+          # Build the JSON payload with Python to avoid shell quoting issues
+          python3 - << PYEOF
+import json, os
+activity = open('/tmp/activity.md').read()
+week_end = "$WEEK_END"
+model    = "$MODEL"
+prompt = (
+    "You are a technical writer for an open-source verification tools project.\n\n"
+    f"Below is raw weekly activity (commits, PRs, issues) from the fvutils GitHub org "
+    f"for the week ending {week_end}.\n\n"
+    + activity +
+    "\n\nWrite a concise weekly news item suitable for the project website. "
+    "Include: a short overall summary paragraph, then a per-repo highlights section "
+    "using bullet points, and a brief \"What's next\" closing line. "
+    "Be factual, avoid hype, use past tense for completed work."
+)
+payload = {"model": model, "messages": [{"role": "user", "content": prompt}],
+           "max_tokens": 600, "temperature": 0.4}
+with open('/tmp/request.json', 'w') as f:
+    json.dump(payload, f)
+print("Request JSON written.")
+PYEOF
 
           gh api -X POST "/models/$MODEL/chat/completions" \
             --input /tmp/request.json \
