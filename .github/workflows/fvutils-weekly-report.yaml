@@ -30,7 +30,7 @@ jobs:
 
           echo "Scanning fvutils org for repos pushed since $START_DATE ..."
           gh repo list fvutils --limit 100 --json name,pushedAt \
-            --jq --argjson start "\"$START_DATE\"" \
+            | jq -r --arg start "$START_DATE" \
               '.[] | select(.pushedAt >= $start) | .name' \
             > /tmp/active_repos.txt
 
