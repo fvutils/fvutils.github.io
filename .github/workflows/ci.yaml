@@ -27,9 +27,19 @@ jobs:
           run: |
             make
 
-        - name: Deploy
-          uses: JamesIves/github-pages-deploy-action@4.1.7
-          with:
-            branch: gh-pages # The branch the action should deploy to.
-            folder: web # The folder the action should deploy.
+        # The GitHub Pages deploy step WAS HERE and is deliberately gone (2026-08-31).
+        #
+        # It had no condition beyond the default branch, and since fvutils joined the
+        # Forgejo <-> GitHub mirror that branch is moved by a five-minute cron. A mirror
+        # operation must never be a publishing operation.
+        #
+        # DELETED rather than gated because dvkit.org owns all documentation: these docs
+        # publish to dvkit.org/fvutils/<repo>/ from .forgejo/workflows/, which uploads
+        # them as an artifact for the host-side poller. A tag-gated Pages deploy would
+        # still be a second publisher of the same content on a different schedule, and
+        # two publishers that agree today diverge the first time one fails quietly.
+        #
+        # THE DOCS BUILD ABOVE STAYS, as a CI check. A broken cross-reference should fail
+        # here, not render as a dead link on dvkit.org.
+
 
